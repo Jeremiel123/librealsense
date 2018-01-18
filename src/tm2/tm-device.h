@@ -82,5 +82,6 @@ namespace librealsense
         std::shared_ptr<playback_device> _loopback;
         perc::TrackingData::Profile _tm_supported_profiles;
         perc::TrackingData::Profile _tm_active_profiles;
+        std::map<int, uint8_t[6]> m_id_to_MAC;
     };
 }

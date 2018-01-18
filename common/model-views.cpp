@@ -292,39 +292,6 @@ namespace rs2
         return res;
     }
 
-    inline std::string get_event_type(const std::string& data)
-    {
-        std::regex event_type(R"REGX("Event Type"\s*:\s*"([^"]+)")REGX");
-        std::smatch m;
-        if (std::regex_search(data, m, event_type))
-        {
-            return m[1];
-        }
-        throw std::runtime_error(std::string("Failed to match Event Type in string: ") + data);
-    }
-
-    inline std::string get_subtype(const std::string& data)
-    {
-        std::regex subtype(R"REGX("Sub Type"\s*:\s*"([^"]+)")REGX");
-        std::smatch m;
-        if (std::regex_search(data, m, subtype))
-        {
-            return m[1];
-        }
-        throw std::runtime_error(std::string("Failed to match Sub Type in string: ") + data);
-    }
-
-    inline int get_id(const std::string& data)
-    {
-        std::regex id_regex(R"REGX("ID" : (\d+))REGX");
-        std::smatch match;
-        if (std::regex_search(data, match, id_regex))
-        {
-            return std::stoi(match[1].str());
-        }
-        throw std::runtime_error(std::string("Failed to match ID in string: ") + data);
-    }
-
     inline std::array<uint8_t, 6> get_mac(const std::string& data)
     {
         std::regex mac_addr_regex(R"REGX("MAC" : \[(\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\])REGX");
@@ -5429,15 +5396,16 @@ namespace rs2
 
     void device_model::handle_harware_events(const std::string& serialized_data)
     {
-        //TODO: Move under hour glass
-        std::string event_type = get_event_type(serialized_data);
+        json json_obj = json::parse(serialized_data);
+
+        std::string event_type = json_obj["Event Type"];
         if (event_type == "Controller Event")
         {
-            std::string subtype = get_subtype(serialized_data);
+            std::string subtype = json_obj["Data"]["Sub Type"];
             if (subtype == "Connection")
             {
                 std::array<uint8_t, 6> mac_addr = get_mac(serialized_data);
-                int id = get_id(serialized_data);
+                int id = json_obj["Data"]["Data"]["controllerId"];
                 controllers[id] = mac_addr;
                 available_controllers.erase(mac_addr);
             }
@@ -5448,7 +5416,7 @@ namespace rs2
             }
             else if (subtype == "Disconnection")
             {
-                int id = get_id(serialized_data);
+                int id = json_obj["Data"]["Data"]["ID"];
                 controllers.erase(id);
             }
         }

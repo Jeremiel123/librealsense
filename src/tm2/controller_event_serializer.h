@@ -4,6 +4,7 @@
 
 #include <string>
 #include "TrackingManager.h"
+#include "../../third-party/json.hpp"
 
 namespace librealsense
 {
@@ -63,55 +64,48 @@ namespace librealsense
         return os << v.major << "." << v.minor << "." << v.patch << "." << v.build;
     }
 
-    //TODO: Use json library for class
     class controller_event_serializer 
     {
     public:
         static std::string serialized_data(const perc::TrackingData::ControllerDiscoveryEventFrame& frame)
         {
-            std::string serialized_data = to_string() 
-                << "\"MAC\" : [" << buffer_to_string(frame.macAddress) << "]";
-            return to_json(event_type_discovery(), serialized_data);
+            nlohmann::json frame_obj;
+            frame_obj["MAC"] = buffer_to_string(frame.macAddress);
+            return to_json(event_type_discovery(), event_type_discovery());
         }
 
         static std::string serialized_data(const perc::TrackingData::ControllerDisconnectedEventFrame& frame)
         {
-            std::string serialized_data = to_string()
-                << "\"ID\" : " << (int)frame.controllerId;
-            return to_json(event_type_disconnection(), serialized_data);
+            nlohmann::json frame_obj;
+            frame_obj["ID"] = (int)frame.controllerId;
+            return to_json(frame_obj, event_type_disconnection());
         }
 
         static std::string serialized_data(const perc::TrackingData::ControllerFrame& frame)
         {
-            std::string serialized_data = to_string() <<
-                "\"sensorIndex\": " << (int)frame.sensorIndex << ","
-                "\"frameId\": " << (int)frame.frameId << ","
-                "\"eventId\": " << (int)frame.eventId << ","
-                "\"instanceId\": " << (int)frame.instanceId << ","
-                "\"sensorData\": [" << buffer_to_string(frame.sensorData) << "]";
-            return to_json(event_type_frame(), serialized_data);
+            nlohmann::json frame_obj;
+            frame_obj["sensorIndex"] = (int)frame.sensorIndex;
+            frame_obj["frameId"] = (int)frame.frameId;
+            frame_obj["eventId"] = (int)frame.eventId;
+            frame_obj["instanceId"] = (int)frame.instanceId;
+            frame_obj["sensorData"] = buffer_to_string(frame.sensorData);
+            return to_json(frame_obj, event_type_frame());
         }
         
-        static std::string serialized_data(const perc::TrackingData::ControllerConnectedEventFrame& frame)
+        static std::string serialized_data(const perc::TrackingData::ControllerConnectedEventFrame& frame, const uint8_t(&mac_address)[6])
         {
-            std::string serialized_data = to_string() <<
-                "\"status\": \"" << get_string(frame.status) << "\","
-                "\"controllerId\": " << (int)frame.controllerId << ","
-                "\"manufacturerId\": " << (int)frame.manufacturerId << ","
-                "\"protocol\": \"" << frame.protocol << "\","
-                "\"app\": \"" << frame.app << "\","
-                "\"softDevice\": \"" << frame.softDevice << "\","
-                "\"bootLoader\": \"" << frame.bootLoader << "\"";
-            return to_json(event_type_frame(), serialized_data);
+            nlohmann::json frame_obj;
+            frame_obj["status"] = get_string(frame.status);
+            frame_obj["controllerId"] = (int)frame.controllerId;
+            frame_obj["manufacturerId"] = (int)frame.manufacturerId;
+            frame_obj["protocol"] = to_string() << frame.protocol;
+            frame_obj["app"] = to_string() << frame.app;
+            frame_obj["softDevice"] = to_string() << frame.softDevice;
+            frame_obj["bootLoader"] = to_string() << frame.bootLoader;
+            frame_obj["MAC"] = mac_address;
+            return to_json(frame_obj, event_type_connection());
         }
-        
-        static std::string serialized_data(const perc::TrackingData::ControllerDeviceConnect& c, uint8_t controller_id)
-        {
-            std::string serialized_data = to_string() 
-                << "\"MAC\" : [" << buffer_to_string(c.macAddress) << "] ,"
-                   "\"ID\" : " << (int)controller_id;
-            return to_json(event_type_connection(), serialized_data);
-        }
+
     private:
         static constexpr const char* prefix() { return R"JSON({"Event Type":"Controller Event", "Data" : {)JSON"; }
         static constexpr const char* suffix() { return "}}"; }
@@ -120,13 +114,15 @@ namespace librealsense
         static constexpr const char* event_type_disconnection() { return "Disconnection"; }
         static constexpr const char* event_type_discovery() { return "Discovery"; }
 
-        static std::string to_json(const char* sub_type, const std::string& data)
+        static std::string to_json(const nlohmann::json& frame_obj, const std::string& subtype)
         {
-            return to_string()
-                << prefix()
-                << "\"Sub Type\" : " << "\"" << sub_type << "\","
-                << "\"Data\" : {" << data << "}"
-                << suffix();
+            nlohmann::json event_obj;
+            event_obj["Event Type"] = "Controller Event";
+            nlohmann::json subtype_obj;
+            subtype_obj["Sub Type"] = subtype;
+            subtype_obj["Data"] = frame_obj;
+            event_obj["Data"] = subtype_obj;
+            return event_obj.dump();
         }
     };
 }

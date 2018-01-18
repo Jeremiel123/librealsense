@@ -785,7 +785,7 @@ namespace librealsense
         std::string msg = to_string() << "Controller #" << (int)frame.controllerId << " connected";
         if (frame.status == perc::Status::SUCCESS)
         {
-            raise_controller_event(msg, controller_event_serializer::serialized_data(frame), frame.timestamp);
+            raise_controller_event(msg, controller_event_serializer::serialized_data(frame, m_id_to_MAC.at(frame.controllerId)), frame.timestamp);
         }
         else
         {
@@ -890,7 +890,8 @@ namespace librealsense
             }
             else
             {
-                LOG_INFO("Successfully sent controller connect to " << buffer_to_string(c.macAddress));
+                copy_array(m_id_to_MAC[controller_id],c.macAddress);
+                LOG_INFO("Successfully sent controller connect to " << buffer_to_string(c.macAddress) << "with id: " << controller_id);
             }
         });
     }
